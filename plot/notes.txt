@@ -1,0 +1,2 @@
+Visualizing the spherical harmonics with matplotlib
+https://scipython.com/book/chapter-8-scipy/examples/visualizing-the-spherical-harmonics/
