@@ -97,6 +97,8 @@ class System:
 
         # Save variables, mainly for debugging.
         self._c_det = c_det
+        self._c = c
+        self._p = np.sum(c, axis=1)
         self._s = s
         return s
             
@@ -305,7 +307,7 @@ def wigner_3j_prod_3darray(l, m):
 
             # Compute SH product coefficients
             w3jp[i,j,:] = np.sqrt( (2*l1 + 1) * (2*l2 + 1) * (2*l + 1) / 
-                                    (np.pi*4) ) * w3j0 * w3j1 *(-1)**np.float(m3) 
+                                    (np.pi*4) ) * w3j0 * w3j1 *(-1)**np.double(m3) 
             #NOTE: (-1)** factor is necessary to match the result obtained
             # with clebsh-gordan coefficients. I am not sure why it is the case.
     

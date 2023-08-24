@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import sys; sys.path.insert(0, 'C:/Users/andre/Documents/GitHub/rotational_diffusion_photophysics')
 import rotational_diffusion_photophysics as rdp
 import colour
-from rotational_diffusion_photophysics_models import *
 
 def plot_pulse_scheme(exp, xlim=[-.1e-3, 1e-3], ylim=[0, 6e4], yscale='linear'):
 
@@ -56,6 +55,8 @@ def plot_pulse_scheme(exp, xlim=[-.1e-3, 1e-3], ylim=[0, 6e4], yscale='linear'):
 
 
 if __name__ == '__main__':
+    from rotational_diffusion_photophysics.models.starss import starss1
+
     xlim = [-.1e-3, 1e-3]
     ylim = [0, 6e4]
     yscale = 'linear'

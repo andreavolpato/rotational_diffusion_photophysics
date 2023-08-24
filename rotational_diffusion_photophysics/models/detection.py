@@ -1,5 +1,5 @@
 import numpy as np
-from common import na_corrected_linear_coeffs
+from rotational_diffusion_photophysics.common import na_corrected_linear_coeffs
 
 ###################
 # Detection classes
