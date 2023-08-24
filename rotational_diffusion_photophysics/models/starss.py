@@ -1,5 +1,7 @@
 import numpy as np
-import rotational_diffusion_photophysics as rdp
+from rotational_diffusion_photophysics.models import detection, illumination, fluorophore, diffusion
+from rotational_diffusion_photophysics import engine
+# from common import
 
 '''
 Usefull full model of experimentally realistic STARSS experiments are implemented
@@ -8,32 +10,31 @@ in this script.
 
 ################################################################################
 ## Common
+################################################################################
 
 numerical_aperture = 1.4 # 1.4
 refractive_index = 1.518 # 1.518
-# numerical_aperture = 0.1 #
-# refractive_index = 1 #
-# numerical_aperture = 1.1 # reduced NA
-# refractive_index = 1.518 # water at 405nm
 lmax = 6
 
 ### Create the detectors
-detXY = rdp.models.detection.PolarizedDetection(polarization=['x', 'y'],
+detXY = detection.PolarizedDetection(polarization=['x', 'y'],
                                numerical_aperture=numerical_aperture,
                                refractive_index=refractive_index,
                                )
 
 # Diffusion model
 def isotropic_diffusion(tau):
-    return rdp.models.diffusion.IsotropicDiffusion(diffusion_coefficient=1/(6*tau))
+    return diffusion.IsotropicDiffusion(diffusion_coefficient=1/(6*tau))
 
 
 # Diffusion model
-iso100us = rdp.models.diffusion.IsotropicDiffusion(diffusion_coefficient=1/(6*100e-6))
-iso1000us = rdp.models.diffusion.IsotropicDiffusion(diffusion_coefficient=1/(6*1000e-6))
+iso1ns = diffusion.IsotropicDiffusion(diffusion_coefficient=1/(6*1e-9))
+iso100us = diffusion.IsotropicDiffusion(diffusion_coefficient=1/(6*100e-6))
+iso1000us = diffusion.IsotropicDiffusion(diffusion_coefficient=1/(6*1000e-6))
  
 ################################################################################
 ## STARSS1
+################################################################################
 '''
 STARSS modality 1 and 2 can be simulated in a relatively easy way because only
 one experiment is perfomed. So the pulse scheme is just one and the output of
@@ -41,7 +42,7 @@ the rdp class is already giving the experimental observable.
 '''
 
 ### Modeled as starss1 experiments 2020/07/21
-exc405X488C = rdp.models.illumination.odulatedLasers(power_density=[176.7e3, 17.6e3/6],
+exc405X488C = illumination.ModulatedLasers(power_density=[176.7e3, 17.6e3/6],
                                   wavelength=[405, 488],
                                   polarization=['x', 'xy'],
                                   modulation=[[0,1,0],[1,1,1]],
@@ -52,16 +53,17 @@ exc405X488C = rdp.models.illumination.odulatedLasers(power_density=[176.7e3, 17.
                                   )
 
 # STARSS modality 1
-starss1 = rdp.models.illumination.System(illumination=exc405X488C,
-                     fluorophore=rdp.models.fluorophore.rsEGFP2_8states,
+starss1 = engine.System(illumination=exc405X488C,
+                     fluorophore=fluorophore.rsEGFP2_8states,
                      diffusion=iso100us,
                      detection=detXY,
                      lmax=lmax)
 
 ################################################################################
 ## STARSS2
+################################################################################
 ### Create the illumination scheme
-exc488Xsimple = rdp.models.illumination.ModulatedLasers(power_density=[5000],
+exc488Xsimple = illumination.ModulatedLasers(power_density=[5000],
                               wavelength=[488],
                               polarization=['x'],
                               modulation=[[1]],
@@ -71,7 +73,7 @@ exc488Xsimple = rdp.models.illumination.ModulatedLasers(power_density=[5000],
                               refractive_index=refractive_index,
                               )
 
-exc488X = rdp.models.illumination.ModulatedLasers(power_density=[114.8e3, 19.6e3/6],
+exc488X = illumination.ModulatedLasers(power_density=[114.8e3, 19.6e3/6],
                               wavelength=[405, 488],
                               polarization=['xy', 'x'],
                               modulation=[[0,1,0,0],[1,1,0,1]],
@@ -82,8 +84,8 @@ exc488X = rdp.models.illumination.ModulatedLasers(power_density=[114.8e3, 19.6e3
                               )
 
 ### Full system
-starss2 = rdp.engine.System(illumination=exc488X,
-                     fluorophore=rdp.models.fluorophore.rsEGFP2_4states,
+starss2 = engine.System(illumination=exc488X,
+                     fluorophore=fluorophore.rsEGFP2_4states,
                      diffusion=iso100us,
                      detection=detXY,
                      lmax=lmax)
@@ -91,6 +93,7 @@ starss2 = rdp.engine.System(illumination=exc488X,
 
 ################################################################################
 ## STARSS3
+################################################################################
 '''
 STARSS modality 3 is a bit more complicated because every data point is computed
 from a pulse scheme with a given time delay between two 405 pulses.
@@ -99,7 +102,7 @@ from a pulse scheme with a given time delay between two 405 pulses.
 def starss3_illumination(delay=5e-6, 
                          numerical_aperture=numerical_aperture,
                          refractive_index=refractive_index):
-    illumination = rdp.models.illumination.ModulatedLasers(power_density=[7.12e6/6/2, 14e3/6],
+    illum = illumination.ModulatedLasers(power_density=[7.12e6/6/2, 14e3/6],
                                        wavelength=[405, 488],
                                        polarization=['x', 'xy'],
                                        modulation=[[0,0,1,0,1,0,0],[1,0,0,0,0,0,1]],
@@ -108,22 +111,22 @@ def starss3_illumination(delay=5e-6,
                                        numerical_aperture=numerical_aperture,
                                        refractive_index=refractive_index,
                                        )
-    return illumination
+    return illum
 
 def starss3_illumination_1pulse(delay=5e-6):
-    illumination = starss3_illumination(delay)
-    illumination.modulation = np.array([[0,0,0,0,1,0,0],[1,0,0,0,0,0,1]], dtype='float')
-    return illumination
+    illum = starss3_illumination(delay)
+    illum.modulation = np.array([[0,0,0,0,1,0,0],[1,0,0,0,0,0,1]], dtype='float')
+    return illum
 
 ### Circularly polarized detector
-detC = rdp.models.illumination.PolarizedDetection(polarization=['xy'],
+detC = detection.PolarizedDetection(polarization=['xy'],
                               numerical_aperture=numerical_aperture,
                               refractive_index=refractive_index,
                               )
 
 ### Full experiment
-starss3 = rdp.engine.System(illumination=starss3_illumination(50e-6),
-                     fluorophore=rdp.models.fluorophore.rsEGFP2_8states,
+starss3 = engine.System(illumination=starss3_illumination(50e-6),
+                     fluorophore=fluorophore.rsEGFP2_8states,
                      diffusion=isotropic_diffusion(100e-6),
                      detection=detC,
                      )
@@ -139,15 +142,15 @@ def starss3_detector_signals(delays,
     integration_lims = [0, 1e-3]
 
     for i in np.arange(np.size(delays)):
-        illumination = starss3_illumination(delays[i])
-        illumination_1pulse = starss3_illumination_1pulse(delays[i])
+        illum = starss3_illumination(delays[i])
+        illum_1pulse = starss3_illumination_1pulse(delays[i])
 
         # signal with only one pulse
-        experiment.illumination = illumination_1pulse
+        experiment.illumination = illum_1pulse
         signal_1pulse = experiment.detector_signals(t)
 
         # signal with two pulses
-        experiment.illumination = illumination
+        experiment.illumination = illum
         signal = experiment.detector_signals(t)
 
         signal_minus_bg_1pulse = signal_1pulse - signal_1pulse[0,-1]
@@ -156,6 +159,32 @@ def starss3_detector_signals(delays,
 
         s[i] = np.sum(signal_minus_bg[0,t_sel]) / np.sum(signal_minus_bg_1pulse[0,t_sel])
     return s, experiment
+
+
+################################################################################
+# STARSS-STED
+################################################################################
+'''
+STARSS STED with crosspolarized excitation and STED gaussian beams.
+'''
+### Modeled as starss1 experiments 2020/07/21
+exc640X775Y = illumination.ModulatedLasers(
+                                  power_density=[1e5, 5e8],
+                                  wavelength=[640, 775],
+                                  polarization=['x', 'y'],
+                                  modulation=[[0,1,0,0,0],[0,0,0,1,0]],
+                                  time_windows=[1e-9, 170e-12, 100e-12, 500e-12, 12e-9],
+                                  time0=1e-9+170e-12/2, # center of the excitation beam
+                                  numerical_aperture=numerical_aperture,
+                                  refractive_index=refractive_index,
+                                  )
+
+# STARSS modality 1
+starss_sted = engine.System(illumination=exc640X775Y,
+                     fluorophore=fluorophore.atto647N,
+                     diffusion=iso1ns,
+                     detection=detXY,
+                     lmax=lmax)
 
 
 if __name__ == "__main__":
