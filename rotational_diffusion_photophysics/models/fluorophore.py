@@ -81,6 +81,8 @@ class NegativeSwitcher:
         # l and m are the quantum numbers of SH, while F encodes the info about
         # photon flux and it's angular dependence.
 
+        #TODO remove dependence from l, m, F and add them in a generic way after
+
         # Initialize arrays
         Feye = np.eye( (l.size) )
         K = np.zeros( (self.nspecies, self.nspecies, l.size, l.size))
@@ -219,5 +221,82 @@ rsEGFP2_9states = NegativeSwitcher(extinction_coeff_on=  [  5260, 51560],
 ################################################################################
 
 class STEDDye:
-    def __init__(self):
-        pass
+    def __init__(self,
+                 extinction_coeff_exc=[0, 0],
+                 extinction_coeff_sted=[0, 0],
+                 wavelength=[640, 775],
+                 lifetime=3e-9,
+                 quantum_yield_fluo=1,
+                 starting_populations=[1,0],
+                 nspecies=2):
+        # Cross section in cm2 of absorptions
+        epsilon2sigma = 3.825e-21  # [Tkachenko2007, page 5]
+        self.extinction_coeff_exc = np.array(extinction_coeff_exc)  # [M-1 cm-1]
+        self.extinction_coeff_sted = np.array(extinction_coeff_sted)  # [M-1 cm-1]
+        self.cross_section_exc = self.extinction_coeff_exc * epsilon2sigma  # [cm2]
+        self.cross_section_sted = self.extinction_coeff_sted * epsilon2sigma  # [cm2]
+        self.wavelength = np.array(wavelength)  # [nm]
+
+        # Lifetime of the on excited state in seconds
+        self.lifetime = lifetime  # [s]
+
+
+        self.quantum_yield_fluo = quantum_yield_fluo
+
+        # Label describing the fluorophore type
+        # Number of states in the kinetic model
+        self.nspecies = nspecies
+
+        # Quantum yield of fluorescence
+        # Here, only one fluorescent state is assumed.
+        # This is not necessary in general and could be extended in the future.
+        self.quantum_yield_fluo = np.zeros((nspecies))
+        self.quantum_yield_fluo[1] = quantum_yield_fluo
+
+        # Population at the beginning of the experiment
+        self.starting_populations = starting_populations
+
+    def kinetics_matrix(self, l, m, F, wavelength_laser):
+        # Compute the kinetics matrix expanded in l, m coefficients
+        # Note that the order of the laser in F must be consistent with the
+        # choices made in the fluorophore class.
+        # In this case F[0] is the blue light.
+
+        # l, m, F, and wavelength must be provided by outside.
+        # l and m are the quantum numbers of SH, while F encodes the info about
+        # photon flux and it's angular dependence.
+
+        # Initialize arrays
+        Feye = np.eye( (l.size) )
+        K = np.zeros( (self.nspecies, self.nspecies, l.size, l.size))
+
+        # Put the kinetic constants connecting the right species
+        # K[1,0] is the kinetic constant for the proces 1 <- 0.
+        nlasers = F.shape[0]
+        nwavelengths = self.wavelength.size
+        if self.nspecies == 2:
+            self.fluorophore_type = 'rsFP_negative_4states'
+            for i in np.arange(nlasers):
+                for j in np.arange(nwavelengths):
+                    if wavelength_laser[i] == self.wavelength[j]:
+                        K[1,0] = K[1,0] + F[i] * self.cross_section_exc[j]
+                        K[0,1] = K[0,1] + F[i] * self.cross_section_sted[j]
+            K[0,1] = K[0,1] + Feye / self.lifetime
+        return K
+
+    def starting_coeffs(self, l, m):
+        # Compute the starting values for the population SH coefficients
+        c0 = np.zeros( (self.nspecies, l.size) )
+        c0[:,0] = self.starting_populations
+        return c0
+
+# atto647N
+# parameterization from: J. Oracz, V. Westphal, C. Radzewicz, S. J. Sahl, and S. W. Hell, Scientific Reports 7, 1 (2017)
+# https://doi.org/10.1021/acs.nanolett.7b00468
+
+atto647N = STEDDye(extinction_coeff_exc=[25950, 0],
+                   extinction_coeff_sted=[0, 1250],
+                   wavelength=[640, 775],
+                   quantum_yield_fluo=0.65,
+                   lifetime=3.5e-9,
+                   )
