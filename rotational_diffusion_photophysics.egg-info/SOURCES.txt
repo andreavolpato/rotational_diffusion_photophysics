@@ -1,0 +1,13 @@
+LICENSE
+README.md
+setup.py
+rotational_diffusion_photophysics/__init__.py
+rotational_diffusion_photophysics/common.py
+rotational_diffusion_photophysics/engine.py
+rotational_diffusion_photophysics.egg-info/PKG-INFO
+rotational_diffusion_photophysics.egg-info/SOURCES.txt
+rotational_diffusion_photophysics.egg-info/dependency_links.txt
+rotational_diffusion_photophysics.egg-info/top_level.txt
+test/test_classes.py
+test/test_pyshtools.py
+test/test_wigner_3j.py
