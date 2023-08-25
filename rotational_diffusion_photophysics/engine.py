@@ -195,7 +195,7 @@ class System:
         for i in np.arange(nwindows):
             K[i] = self.fluorophore.kinetics_matrix(self._l, self._m,
                         F * self.illumination.modulation[:,i][:,None,None],
-                        self.illumination.wavelength)
+                        self.illumination.wavelength) #TODO: separate K from rotational stuff
             M[i] = diffusion_kinetics_matrix(D, K[i])
 
         # Save variables, mainly for debugging.

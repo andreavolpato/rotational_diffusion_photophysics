@@ -199,21 +199,21 @@ rsEGFP2_8states = NegativeSwitcher(extinction_coeff_on=  [  5260, 51560],
                                     quantum_yield_cis_to_trans_neutral=0.33,
                                     )
 
-rsEGFP2_9states = NegativeSwitcher(extinction_coeff_on=  [  5260, 51560],
-                                    extinction_coeff_off=[ 22000,    60],
-                                    wavelength=          [   405,   488],
-                                    lifetime_on=1.6e-9,
-                                    lifetime_off=20e-12,
-                                    quantum_yield_on_to_off=1.65e-2,
-                                    quantum_yield_off_to_on=0.33,
-                                    quantum_yield_on_fluo=0.35,
-                                    starting_populations=[1,0,0,0,0,0,0,0,0],
-                                    deprotonation_time_off=5.1e-6,
-                                    protonation_time_on=48e-6,
-                                    nspecies=9,
-                                    quantum_yield_trans_to_cis_anionic=0.0165,
-                                    quantum_yield_cis_to_trans_neutral=0.33,
-                                    )
+rsEGFP2_9states = NegativeSwitcher(extinction_coeff_on= [  5260, 51560],
+                                   extinction_coeff_off=[ 22000,    60],
+                                   wavelength=          [   405,   488],
+                                   lifetime_on=1.6e-9,
+                                   lifetime_off=20e-12,
+                                   quantum_yield_on_to_off=1.65e-2,
+                                   quantum_yield_off_to_on=0.33,
+                                   quantum_yield_on_fluo=0.35,
+                                   starting_populations=[1,0,0,0,0,0,0,0,0],
+                                   deprotonation_time_off=5.1e-6,
+                                   protonation_time_on=48e-6,
+                                   nspecies=9,
+                                   quantum_yield_trans_to_cis_anionic=0.0165,
+                                   quantum_yield_cis_to_trans_neutral=0.33,
+                                   )
 
 
 ################################################################################
@@ -275,7 +275,7 @@ class STEDDye:
         nlasers = F.shape[0]
         nwavelengths = self.wavelength.size
         if self.nspecies == 2:
-            self.fluorophore_type = 'rsFP_negative_4states'
+            self.fluorophore_type = 'sted_dye'
             for i in np.arange(nlasers):
                 for j in np.arange(nwavelengths):
                     if wavelength_laser[i] == self.wavelength[j]:
