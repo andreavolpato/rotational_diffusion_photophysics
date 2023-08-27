@@ -4,6 +4,8 @@ import numpy as np
 # Reversibly switchable fluorescence proteins (RSFP) classes
 ################################################################################
 
+## Negative switchers
+
 class NegativeSwitcher:
     def __init__(self,
                  extinction_coeff_on=[0, 0],
@@ -21,7 +23,7 @@ class NegativeSwitcher:
                  quantum_yield_cis_to_trans_neutral=0, # for 8 states model
                  quantum_yield_cis_anionic_bleaching=0,
                  quantum_yield_trans_anionic_bleaching=0,
-                 nspecies=4):
+                 flurophore_type='rsfp_negative_4states'):
         # Cross section in cm2 of absorptions
         epsilon2sigma = 3.825e-21  # [Tkachenko2007, page 5]
         self.extinction_coeff_on = np.array(extinction_coeff_on)  # [M-1 cm-1]
@@ -59,120 +61,96 @@ class NegativeSwitcher:
 
         # Label describing the fluorophore type
         # Number of states in the kinetic model
-        self.nspecies = nspecies
+        self.nspecies = np.size(starting_populations)
+        self.fluorophore_type = flurophore_type #TODO make the kinetic matrix based on the fluorophore type
 
         # Index of the fluorescent state
         # Here, only one fluorescent state is assumed.
         # This is not necessary in general and could be extended in the future.
-        self.quantum_yield_fluo = np.zeros((nspecies))
+        self.quantum_yield_fluo = np.zeros((self.nspecies))
         self.quantum_yield_fluo[1] = self.quantum_yield_on_fluo
 
         # Population at the beginning of the experiment
         self.starting_populations = starting_populations
         return None
 
-    def kinetics_matrix(self, l, m, F, wavelength_laser):
-        # Compute the kinetics matrix expanded in l, m coefficients
-        # Note that the order of the laser in F must be consistent with the
-        # choices made in the fluorophore class.
-        # In this case F[0] is the blue light.
-
-        # l, m, F, and wavelength must be provided by outside.
-        # l and m are the quantum numbers of SH, while F encodes the info about
-        # photon flux and it's angular dependence.
-
-        #TODO remove dependence from l, m, F and add them in a generic way after
+    def kinetics_matrix(self, wavelength_laser):
+        # Compute the kinetics matrix 
 
         # Initialize arrays
-        Feye = np.eye( (l.size) )
-        K = np.zeros( (self.nspecies, self.nspecies, l.size, l.size))
+        nwavelengths = self.wavelength.size
+        K = np.zeros( (nwavelengths+1, self.nspecies, self.nspecies))
 
         # Put the kinetic constants connecting the right species
         # K[1,0] is the kinetic constant for the proces 1 <- 0.
-        nlasers = F.shape[0]
-        nwavelengths = self.wavelength.size
-        if self.nspecies == 4:
-            self.fluorophore_type = 'rsFP_negative_4states'
-            for i in np.arange(nlasers):
-                for j in np.arange(nwavelengths):
-                    if wavelength_laser[i] == self.wavelength[j]:
-                        K[1,0] = K[1,0] + F[i] * self.cross_section_on[j]
-                        K[3,2] = K[3,2] + F[i] * self.cross_section_off[j]
-            K[0,1] = Feye / self.lifetime_on
-            K[2,1] = Feye / self.lifetime_on  * self.quantum_yield_on_to_off
-            K[2,3] = Feye / self.lifetime_off
-            K[0,3] = Feye / self.lifetime_off * self.quantum_yield_off_to_on
+        if  self.fluorophore_type == 'rsFP_negative_4states':
+            # Light independent transitions
+            K[0][0,1] = 1 / self.lifetime_on
+            K[0][2,1] = 1 / self.lifetime_on  * self.quantum_yield_on_to_off
+            K[0][2,3] = 1 / self.lifetime_off
+            K[0][0,3] = 1 / self.lifetime_off * self.quantum_yield_off_to_on
+            # Light driven transition
+            for j in np.arange(nwavelengths):
+                K[j+1][1,0] = self.cross_section_on[j]
+                K[j+1][3,2] = self.cross_section_off[j]
         
-        if self.nspecies == 6:
-            self.fluorophore_type = 'rsFP_negative_6states'
-            for i in np.arange(nlasers):
-                for j in np.arange(nwavelengths):
-                    if wavelength_laser[i] == self.wavelength[j]:
-                        K[1,0] = K[1,0] + F[i] * self.cross_section_on[j]
-                        K[4,3] = K[4,3] + F[i] * self.cross_section_off[j]
-            K[0,1] = Feye / self.lifetime_on
-            K[2,1] = Feye / self.lifetime_on  * self.quantum_yield_on_to_off
-            K[3,2] = Feye / self.protonation_time_on
-            K[3,4] = Feye / self.lifetime_off
-            K[5,4] = Feye / self.lifetime_off * self.quantum_yield_off_to_on
-            K[0,5] = Feye / self.deprotonation_time_off
+        if self.fluorophore_type == 'rsFP_negative_6states':
+            # Light independent transitions
+            K[0][0,1] = 1 / self.lifetime_on
+            K[0][2,1] = 1 / self.lifetime_on  * self.quantum_yield_on_to_off
+            K[0][3,2] = 1 / self.protonation_time_on
+            K[0][3,4] = 1 / self.lifetime_off
+            K[0][5,4] = 1 / self.lifetime_off * self.quantum_yield_off_to_on
+            K[0][0,5] = 1 / self.deprotonation_time_off
+            # Light driven transition
+            for j in np.arange(nwavelengths):
+                K[j+1][1,0] = self.cross_section_on[j]
+                K[j+1][4,3] = self.cross_section_off[j]
         
-        if self.nspecies == 8:
-            self.fluorophore_type = 'rsFP_negative_8states'
-            for i in np.arange(nlasers):
-                for j in np.arange(nwavelengths):
-                    if wavelength_laser[i] == self.wavelength[j]:
-                        K[1,0] = K[1,0] + F[i] * self.cross_section_on[j]  # cis anionic
-                        K[3,2] = K[3,2] + F[i] * self.cross_section_on[j]  # trans anionic
-                        K[5,4] = K[5,4] + F[i] * self.cross_section_off[j]  # trans neutral
-                        K[7,6] = K[7,6] + F[i] * self.cross_section_off[j]  # cis neutral
+        if self.fluorophore_type == 'rsFP_negative_8states':
             # On-branch
-            K[0,1] = Feye / self.lifetime_on
-            K[2,1] = Feye / self.lifetime_on  * self.quantum_yield_on_to_off
-            K[2,3] = Feye / self.lifetime_on
-            K[0,3] = Feye / self.lifetime_on  * self.quantum_yield_trans_to_cis_anionic
-            K[4,2] = Feye / self.protonation_time_on
-
+            K[0][0,1] = 1 / self.lifetime_on
+            K[0][2,1] = 1 / self.lifetime_on  * self.quantum_yield_on_to_off
+            K[0][2,3] = 1 / self.lifetime_on
+            K[0][0,3] = 1 / self.lifetime_on  * self.quantum_yield_trans_to_cis_anionic
+            K[0][4,2] = 1 / self.protonation_time_on
             # Off-branch
-            K[4,5] = Feye / self.lifetime_off
-            K[6,5] = Feye / self.lifetime_off * self.quantum_yield_off_to_on
-            K[6,7] = Feye / self.lifetime_off
-            K[4,7] = Feye / self.lifetime_off * self.quantum_yield_cis_to_trans_neutral
-            K[0,6] = Feye / self.deprotonation_time_off
+            K[0][4,5] = 1 / self.lifetime_off
+            K[0][6,5] = 1 / self.lifetime_off * self.quantum_yield_off_to_on
+            K[0][6,7] = 1 / self.lifetime_off
+            K[0][4,7] = 1 / self.lifetime_off * self.quantum_yield_cis_to_trans_neutral
+            K[0][0,6] = 1 / self.deprotonation_time_off
+            # Light driven
+            for j in np.arange(nwavelengths):
+                K[j+1][1,0] = self.cross_section_on[j]  # cis anionic
+                K[j+1][3,2] = self.cross_section_on[j]  # trans anionic
+                K[j+1][5,4] = self.cross_section_off[j]  # trans neutral
+                K[j+1][7,6] = self.cross_section_off[j]  # cis neutral
         
-        if self.nspecies == 9:
-            self.fluorophore_type = 'rsFP_negative_9states_bleaching'
-            for i in np.arange(nlasers):
-                for j in np.arange(nwavelengths):
-                    if wavelength_laser[i] == self.wavelength[j]:
-                        K[1,0] = K[1,0] + F[i] * self.cross_section_on[j]  # cis anionic
-                        K[3,2] = K[3,2] + F[i] * self.cross_section_on[j]  # trans anionic
-                        K[5,4] = K[5,4] + F[i] * self.cross_section_off[j]  # trans neutral
-                        K[7,6] = K[7,6] + F[i] * self.cross_section_off[j]  # cis neutral
+        if self.fluorophore_type == 'rsFP_negative_9states_bleaching':
             # On-branch
-            K[0,1] = Feye / self.lifetime_on
-            K[2,1] = Feye / self.lifetime_on  * self.quantum_yield_on_to_off
-            K[2,3] = Feye / self.lifetime_on
-            K[0,3] = Feye / self.lifetime_on  * self.quantum_yield_trans_to_cis_anionic
-            K[4,2] = Feye / self.protonation_time_on
-
+            K[0][0,1] = 1 / self.lifetime_on
+            K[0][2,1] = 1 / self.lifetime_on  * self.quantum_yield_on_to_off
+            K[0][2,3] = 1 / self.lifetime_on
+            K[0][0,3] = 1 / self.lifetime_on  * self.quantum_yield_trans_to_cis_anionic
+            K[0][4,2] = 1 / self.protonation_time_on
             # Off-branch
-            K[4,5] = Feye / self.lifetime_off
-            K[6,5] = Feye / self.lifetime_off * self.quantum_yield_off_to_on
-            K[6,7] = Feye / self.lifetime_off
-            K[4,7] = Feye / self.lifetime_off * self.quantum_yield_cis_to_trans_neutral
-            K[0,6] = Feye / self.deprotonation_time_off
-
+            K[0][4,5] = 1 / self.lifetime_off
+            K[0][6,5] = 1 / self.lifetime_off * self.quantum_yield_off_to_on
+            K[0][6,7] = 1 / self.lifetime_off
+            K[0][4,7] = 1 / self.lifetime_off * self.quantum_yield_cis_to_trans_neutral
+            K[0][0,6] = 1 / self.deprotonation_time_off
             # Bleaching channels from teh on-branch
-            K[8,1] = Feye / self.lifetime_on * self.quantum_yield_cis_anionic_bleaching
-            K[8,3] = Feye / self.lifetime_on * self.quantum_yield_trans_anionic_bleaching
-        return K
+            K[0][8,1] = 1 / self.lifetime_on * self.quantum_yield_cis_anionic_bleaching
+            K[0][8,3] = 1 / self.lifetime_on * self.quantum_yield_trans_anionic_bleaching
+            # Light driven
+            for j in np.arange(nwavelengths):
+                K[j+1][1,0] = self.cross_section_on[j]  # cis anionic
+                K[j+1][3,2] = self.cross_section_on[j]  # trans anionic
+                K[j+1][5,4] = self.cross_section_off[j]  # trans neutral
+                K[j+1][7,6] = self.cross_section_off[j]  # cis neutral
 
-    def starting_coeffs(self, l, m):
-        # Compute the starting values for the population SH coefficients
-        c0 = np.zeros( (self.nspecies, l.size) )
-        c0[:,0] = self.starting_populations
-        return c0
+        return K
 
 # rsEGFP2 Models
 rsEGFP2_4states = NegativeSwitcher(extinction_coeff_on=[5260, 51560],
@@ -181,6 +159,7 @@ rsEGFP2_4states = NegativeSwitcher(extinction_coeff_on=[5260, 51560],
                                     lifetime_on=1.6e-9,
                                     quantum_yield_on_fluo=0.35,
                                     quantum_yield_on_to_off=1.65e-2,
+                                    flurophore_type='rsFP_negative_4states',
                                     )
 
 rsEGFP2_8states = NegativeSwitcher(extinction_coeff_on=  [  5260, 51560],
@@ -194,9 +173,9 @@ rsEGFP2_8states = NegativeSwitcher(extinction_coeff_on=  [  5260, 51560],
                                     starting_populations=[1,0,0,0,0,0,0,0],
                                     deprotonation_time_off=5.1e-6,
                                     protonation_time_on=48e-6,
-                                    nspecies=8,
                                     quantum_yield_trans_to_cis_anionic=0.0165,
                                     quantum_yield_cis_to_trans_neutral=0.33,
+                                    flurophore_type='rsFP_negative_8states',
                                     )
 
 rsEGFP2_9states = NegativeSwitcher(extinction_coeff_on= [  5260, 51560],
@@ -210,10 +189,140 @@ rsEGFP2_9states = NegativeSwitcher(extinction_coeff_on= [  5260, 51560],
                                    starting_populations=[1,0,0,0,0,0,0,0,0],
                                    deprotonation_time_off=5.1e-6,
                                    protonation_time_on=48e-6,
-                                   nspecies=9,
                                    quantum_yield_trans_to_cis_anionic=0.0165,
                                    quantum_yield_cis_to_trans_neutral=0.33,
+                                   flurophore_type='rsFP_negative_9states',
                                    )
+
+## Generic switchers
+
+class GenericSwitcher:
+    def __init__(self,
+                 extinction_coeff_on=[0, 0],
+                 extinction_coeff_off=[0, 0],
+                 wavelength=[405, 488],
+                 lifetime_on=3e-9,
+                 lifetime_off=16e-12,
+                 quantum_yield_on_to_off=0.001,
+                 quantum_yield_off_to_on=0.2,
+                 quantum_yield_on_fluo=1,
+                 starting_populations=[1,0,0,0,0,0,0,0],
+                 deprotonation_time_off = 5e-6,  # for 6 states model
+                 protonation_time_on = 50e-6,  # for 6 states model
+                 quantum_yield_trans_to_cis_anionic=0,
+                 quantum_yield_cis_to_trans_neutral=0,
+                 quantum_yield_cis_anionic_bleaching=0,
+                 quantum_yield_trans_anionic_bleaching=0,
+                 pka_cis=5.9,
+                 pka_trans=10.0,
+                 ph_buffer=7.5,
+                 flurophore_type='rsfp_generic_8states'):
+        # Cross section in cm2 of absorptions
+        epsilon2sigma = 3.825e-21  # [Tkachenko2007, page 5]
+        self.extinction_coeff_on = np.array(extinction_coeff_on)  # [M-1 cm-1]
+        self.extinction_coeff_off = np.array(extinction_coeff_off)  # [M-1 cm-1]
+        self.cross_section_on = self.extinction_coeff_on * epsilon2sigma  # [cm2]
+        self.cross_section_off = self.extinction_coeff_off * epsilon2sigma  # [cm2]
+        self.wavelength = np.array(wavelength)  # [nm]
+
+        # Lifetime of the on excited state in seconds
+        # Assumption: lifetime on and off are the same for the same protonation
+        # state. This might not be the case, especially because cis_neutral
+        # species is not fluorescent, so most likely it will have a shorter
+        # lifetime. For small enough excitation kinetic rates, if we don't have
+        # accumulation of exited state species, then it doesn't matter much.
+        self.lifetime_on = lifetime_on  # [s]
+        self.lifetime_off = lifetime_off  # [s]
+
+        # Quantum yield of an off-switching event from the on excited state and
+        # fluorescence from the on state
+        self.quantum_yield_on_fluo = quantum_yield_on_fluo
+        self.quantum_yield_on_to_off = quantum_yield_on_to_off  # cis_to_trans_anionic 
+        self.quantum_yield_off_to_on = quantum_yield_off_to_on  # trans_to_cis_neutra
+
+        # Quantum yeilds and Protonation and deprotonation times for 6 and 8
+        # states models.
+        self.quantum_yield_cis_to_trans_neutral = quantum_yield_cis_to_trans_neutral
+        self.quantum_yield_trans_to_cis_anionic = quantum_yield_trans_to_cis_anionic
+        self.protonation_time_on = protonation_time_on
+        self.deprotonation_time_off = deprotonation_time_off
+
+        # Bleaching quantum yields, assuming only a bleaching channel from 
+        # excitaiton of the on state.
+        self.quantum_yield_cis_anionic_bleaching = quantum_yield_cis_anionic_bleaching
+        self.quantum_yield_trans_anionic_bleaching = quantum_yield_trans_anionic_bleaching
+
+        # Adic-base properties
+        self.pka_cis = pka_cis
+        self.pka_trans = pka_trans
+        self.ph_buffer = ph_buffer
+
+        # Label describing the fluorophore type
+        # Number of states in the kinetic model
+        self.nspecies = np.size(starting_populations)
+        self.fluorophore_type = flurophore_type
+
+        # Index of the fluorescent state
+        # Here, only one fluorescent state is assumed.
+        # This is not necessary in general and could be extended in the future.
+        self.quantum_yield_fluo = np.zeros((self.nspecies))
+        self.quantum_yield_fluo[1] = self.quantum_yield_on_fluo
+
+        # Population at the beginning of the experiment
+        self.starting_populations = starting_populations
+        return None
+
+    def kinetics_matrix(self, wavelength_laser):
+        # Compute the kinetics matrix
+
+        # Initialize arrays
+        nwavelengths = self.wavelength.size
+        K = np.zeros( (nwavelengths+1, self.nspecies, self.nspecies))
+
+        # Put the kinetic constants connecting the right species
+        # K[1,0] is the kinetic constant for the proces 1 <- 0.
+        if self.fluorophore_type == 'rsFP_generic_8states':
+            # On-branch
+            K[0][0,1] = 1 / self.lifetime_on
+            K[0][2,1] = 1 / self.lifetime_on  * self.quantum_yield_on_to_off
+            K[0][2,3] = 1 / self.lifetime_on
+            K[0][0,3] = 1 / self.lifetime_on  * self.quantum_yield_trans_to_cis_anionic
+            K[0][4,2] = 1 / self.protonation_time_on
+            K[0][2,4] = 1 / self.protonation_time_on * 10**(self.ph_buffer - self.pka_trans)
+            # Off-branch
+            K[0][4,5] = 1 / self.lifetime_off
+            K[0][6,5] = 1 / self.lifetime_off * self.quantum_yield_off_to_on
+            K[0][6,7] = 1 / self.lifetime_off
+            K[0][4,7] = 1 / self.lifetime_off * self.quantum_yield_cis_to_trans_neutral
+            K[0][0,6] = 1 / self.deprotonation_time_off
+            K[0][6,0] = 1 / self.deprotonation_time_off * 10**(self.pka_cis - self.ph_buffer)
+            # Light driven
+            for j in np.arange(nwavelengths):
+                K[j+1][1,0] = self.cross_section_on[j]  # cis anionic
+                K[j+1][3,2] = self.cross_section_on[j]  # trans anionic
+                K[j+1][5,4] = self.cross_section_off[j]  # trans neutral
+                K[j+1][7,6] = self.cross_section_off[j]  # cis neutral
+        return K
+
+rsEGFP2_8states_pka = GenericSwitcher(extinction_coeff_on=  [  5260, 51560],
+                                      extinction_coeff_off=[ 22000,    60],
+                                      wavelength=          [   405,   488],
+                                      lifetime_on=1.6e-9,
+                                      lifetime_off=20e-12,
+                                      quantum_yield_on_to_off=0.0165,
+                                      quantum_yield_off_to_on=0.33,
+                                      quantum_yield_trans_to_cis_anionic=0.0165,
+                                      quantum_yield_cis_to_trans_neutral=0.33,
+                                      quantum_yield_on_fluo=0.35,
+                                      starting_populations=[1,0,0,0,0,0,0,0],
+                                      deprotonation_time_off=5.1e-6,
+                                      protonation_time_on=48e-6,
+                                      flurophore_type='rsFP_generic_8states',
+                                      pka_cis=5.9,
+                                      pka_trans=10.0,
+                                      ph_buffer=7.5,
+                                      )
+
 
 
 ################################################################################
@@ -229,6 +338,7 @@ class STEDDye:
                  quantum_yield_fluo=1,
                  starting_populations=[1,0],
                  nspecies=2):
+        self.fluorophore_type = 'sted_dye'
         # Cross section in cm2 of absorptions
         epsilon2sigma = 3.825e-21  # [Tkachenko2007, page 5]
         self.extinction_coeff_exc = np.array(extinction_coeff_exc)  # [M-1 cm-1]
@@ -239,7 +349,6 @@ class STEDDye:
 
         # Lifetime of the on excited state in seconds
         self.lifetime = lifetime  # [s]
-
 
         self.quantum_yield_fluo = quantum_yield_fluo
 
@@ -256,39 +365,25 @@ class STEDDye:
         # Population at the beginning of the experiment
         self.starting_populations = starting_populations
 
-    def kinetics_matrix(self, l, m, F, wavelength_laser):
-        # Compute the kinetics matrix expanded in l, m coefficients
-        # Note that the order of the laser in F must be consistent with the
-        # choices made in the fluorophore class.
-        # In this case F[0] is the blue light.
-
-        # l, m, F, and wavelength must be provided by outside.
-        # l and m are the quantum numbers of SH, while F encodes the info about
-        # photon flux and it's angular dependence.
+    def kinetics_matrix(self, wavelength_laser):
+        # Compose the kinetic matrix, k.
+        # Light driven transition are expressed as corss sections.
+        # Transition induced by a certain wavelength are groupped
+        # in separate layers of k.
+        # k has three dimensions: [nwavelenght+1, nspecies, nspecies].
+        # k[0] is reserved for all non-light-induced transitions.
 
         # Initialize arrays
-        Feye = np.eye( (l.size) )
-        K = np.zeros( (self.nspecies, self.nspecies, l.size, l.size))
+        nwavelengths = self.wavelength.size
+        K = np.zeros( (nwavelengths+1, self.nspecies, self.nspecies))
 
         # Put the kinetic constants connecting the right species
         # K[1,0] is the kinetic constant for the proces 1 <- 0.
-        nlasers = F.shape[0]
-        nwavelengths = self.wavelength.size
-        if self.nspecies == 2:
-            self.fluorophore_type = 'sted_dye'
-            for i in np.arange(nlasers):
-                for j in np.arange(nwavelengths):
-                    if wavelength_laser[i] == self.wavelength[j]:
-                        K[1,0] = K[1,0] + F[i] * self.cross_section_exc[j]
-                        K[0,1] = K[0,1] + F[i] * self.cross_section_sted[j]
-            K[0,1] = K[0,1] + Feye / self.lifetime
+        K[0][0,1] = 1 / self.lifetime
+        for i in np.arange(nwavelengths):
+            K[i+1][1,0] = self.cross_section_exc[i]
+            K[i+1][0,1] = self.cross_section_sted[i]
         return K
-
-    def starting_coeffs(self, l, m):
-        # Compute the starting values for the population SH coefficients
-        c0 = np.zeros( (self.nspecies, l.size) )
-        c0[:,0] = self.starting_populations
-        return c0
 
 # atto647N
 # parameterization from: J. Oracz, V. Westphal, C. Radzewicz, S. J. Sahl, and S. W. Hell, Scientific Reports 7, 1 (2017)

@@ -112,7 +112,8 @@ class System:
 
         # Get the initial conditions for the experiment from the fluorophore
         # class.
-        c0 = self.fluorophore.starting_coeffs(self._l, self._m)
+        c0 = np.zeros( (self.fluorophore.nspecies, self._l.size) )
+        c0[:,0] = self.fluorophore.starting_populations
 
         # Optimization, remove all odd l value coefficients from c0 and M.
         # We will need to add them back, after the solution.
@@ -169,7 +170,8 @@ class System:
 
     def diffusion_kinetics_matrix(self):
         # Preliminary computations based on the illumination class.
-        # Photon flux product coefficients based on wigner3j symbols
+        # Photon flux product coefficients based on wigner3j symbols.
+        # F has dimensions: [nlansers, l_size, l_size].
         F, c_exc = self.illumination.photon_flux_prod_coeffs(
                                                     self._l,
                                                     self._m,
@@ -192,10 +194,26 @@ class System:
         K = np.zeros( (nwindows,
                        nspecies, nspecies,
                        self._l.size, self._l.size) )
+
+        # Calcualte the kinetic matrix, k.
+        # Light driven transition are expressed as corss sections.
+        # Transition induced by a certain wavelength are groupped
+        # in separate layers of k.
+        # k has three dimensions: [nwavelenght+1, nspecies, nspecies].
+        # k[0] is reserved for all non-light-induced transitions.
+        k = self.fluorophore.kinetics_matrix(self.illumination.wavelength)
+        # Select the right lasers to use in the calculations
+        nlasers = np.size(self.illumination.wavelength)
+        lasers = self.illumination.wavelength
+        wavelength = self.fluorophore.wavelength
+        wavelength_indexes = np.concatenate( ([0], find_wavelenght(wavelength, lasers)+1) )
+        # Allocate memory for the photon flux matrices for each window.
+        # +1 accounts for the transitions not induced by light.
+        Fi = np.zeros((nlasers+1, self._l.size, self._l.size))
+        Fi[0] = np.eye(self._l.size, self._l.size)
         for i in np.arange(nwindows):
-            K[i] = self.fluorophore.kinetics_matrix(self._l, self._m,
-                        F * self.illumination.modulation[:,i][:,None,None],
-                        self.illumination.wavelength) #TODO: separate K from rotational stuff
+            Fi[1:] = F * self.illumination.modulation[:,i][:,None,None]
+            K[i] = np.einsum('ijk,ilm->jklm', k[wavelength_indexes], Fi)
             M[i] = diffusion_kinetics_matrix(D, K[i])
 
         # Save variables, mainly for debugging.
@@ -210,6 +228,20 @@ class System:
 ################################################################################
 # Engine of the rotational-diffusion and kinetics solver
 ################################################################################
+
+def find_wavelenght(wavelength, laser):
+    wavelength = np.array(wavelength)
+    laser = np.array(laser)
+
+    wavelength_to_use = np.isin(wavelength, laser)
+    laser_to_use = np.isin(laser, wavelength)
+    assert np.all(laser_to_use), "Fluorophore data at one or more laser wavelenghts is missing."
+
+    wavelength_indexes = np.zeros(laser.shape)
+    for i, laseri in enumerate(laser):
+        wavelength_indexes[i] = np.where(wavelength == laseri)[0]
+    wavelength_indexes = np.int32(wavelength_indexes)
+    return wavelength_indexes
 
 def quantum_numbers(lmax):
     # Generate arrays with quantum numbers l and m
