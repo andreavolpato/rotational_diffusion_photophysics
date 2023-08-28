@@ -74,7 +74,7 @@ class NegativeSwitcher:
         self.starting_populations = starting_populations
         return None
 
-    def kinetics_matrix(self, wavelength_laser):
+    def kinetics_matrix(self):
         # Compute the kinetics matrix 
 
         # Initialize arrays
@@ -198,31 +198,29 @@ rsEGFP2_9states = NegativeSwitcher(extinction_coeff_on= [  5260, 51560],
 
 class GenericSwitcher:
     def __init__(self,
-                 extinction_coeff_on=[0, 0],
-                 extinction_coeff_off=[0, 0],
+                 extinction_coeff_anionic=[0, 0],
+                 extinction_coeff_neutral=[0, 0],
                  wavelength=[405, 488],
-                 lifetime_on=3e-9,
-                 lifetime_off=16e-12,
-                 quantum_yield_on_to_off=0.001,
-                 quantum_yield_off_to_on=0.2,
+                 lifetime_anionic=3e-9, # on state
+                 lifetime_neutral=16e-12, # off state
+                 quantum_yield_cis_to_trans_anionic=0.0165, # off switch quantum yield
+                 quantum_yield_trans_to_cis_neutral=0.33, # on switch quantum yield
+                 quantum_yield_trans_to_cis_anionic=0.33, # off switch reversed
+                 quantum_yield_cis_to_trans_neutral=0.0165, # on switch reversed
+                 deprotonation_time_cis_neutral = 5e-6,  # on switch
+                 protonation_time_trans_anionic = 50e-6,  # off switch
                  quantum_yield_on_fluo=1,
                  starting_populations=[1,0,0,0,0,0,0,0],
-                 deprotonation_time_off = 5e-6,  # for 6 states model
-                 protonation_time_on = 50e-6,  # for 6 states model
-                 quantum_yield_trans_to_cis_anionic=0,
-                 quantum_yield_cis_to_trans_neutral=0,
-                 quantum_yield_cis_anionic_bleaching=0,
-                 quantum_yield_trans_anionic_bleaching=0,
                  pka_cis=5.9,
                  pka_trans=10.0,
                  ph_buffer=7.5,
                  flurophore_type='rsfp_generic_8states'):
         # Cross section in cm2 of absorptions
         epsilon2sigma = 3.825e-21  # [Tkachenko2007, page 5]
-        self.extinction_coeff_on = np.array(extinction_coeff_on)  # [M-1 cm-1]
-        self.extinction_coeff_off = np.array(extinction_coeff_off)  # [M-1 cm-1]
-        self.cross_section_on = self.extinction_coeff_on * epsilon2sigma  # [cm2]
-        self.cross_section_off = self.extinction_coeff_off * epsilon2sigma  # [cm2]
+        self.extinction_coeff_anionic = np.array(extinction_coeff_anionic)  # [M-1 cm-1]
+        self.extinction_coeff_neutral = np.array(extinction_coeff_neutral)  # [M-1 cm-1]
+        self.cross_section_anionic = self.extinction_coeff_anionic * epsilon2sigma  # [cm2]
+        self.cross_section_neutral = self.extinction_coeff_neutral * epsilon2sigma  # [cm2]
         self.wavelength = np.array(wavelength)  # [nm]
 
         # Lifetime of the on excited state in seconds
@@ -231,26 +229,17 @@ class GenericSwitcher:
         # species is not fluorescent, so most likely it will have a shorter
         # lifetime. For small enough excitation kinetic rates, if we don't have
         # accumulation of exited state species, then it doesn't matter much.
-        self.lifetime_on = lifetime_on  # [s]
-        self.lifetime_off = lifetime_off  # [s]
+        self.lifetime_anionic = lifetime_anionic  # [s]
+        self.lifetime_neutral = lifetime_neutral  # [s]
 
-        # Quantum yield of an off-switching event from the on excited state and
-        # fluorescence from the on state
+        # Quantum yields and protonation/deprotonation
         self.quantum_yield_on_fluo = quantum_yield_on_fluo
-        self.quantum_yield_on_to_off = quantum_yield_on_to_off  # cis_to_trans_anionic 
-        self.quantum_yield_off_to_on = quantum_yield_off_to_on  # trans_to_cis_neutra
-
-        # Quantum yeilds and Protonation and deprotonation times for 6 and 8
-        # states models.
+        self.quantum_yield_cis_to_trans_anionic = quantum_yield_cis_to_trans_anionic  # cis_to_trans_anionic 
+        self.quantum_yield_trans_to_cis_neutral = quantum_yield_trans_to_cis_neutral  # trans_to_cis_neutra
         self.quantum_yield_cis_to_trans_neutral = quantum_yield_cis_to_trans_neutral
         self.quantum_yield_trans_to_cis_anionic = quantum_yield_trans_to_cis_anionic
-        self.protonation_time_on = protonation_time_on
-        self.deprotonation_time_off = deprotonation_time_off
-
-        # Bleaching quantum yields, assuming only a bleaching channel from 
-        # excitaiton of the on state.
-        self.quantum_yield_cis_anionic_bleaching = quantum_yield_cis_anionic_bleaching
-        self.quantum_yield_trans_anionic_bleaching = quantum_yield_trans_anionic_bleaching
+        self.protonation_time_trans_anionic = protonation_time_trans_anionic
+        self.deprotonation_time_cis_neutral = deprotonation_time_cis_neutral
 
         # Adic-base properties
         self.pka_cis = pka_cis
@@ -272,7 +261,7 @@ class GenericSwitcher:
         self.starting_populations = starting_populations
         return None
 
-    def kinetics_matrix(self, wavelength_laser):
+    def kinetics_matrix(self):
         # Compute the kinetics matrix
 
         # Initialize arrays
@@ -283,40 +272,40 @@ class GenericSwitcher:
         # K[1,0] is the kinetic constant for the proces 1 <- 0.
         if self.fluorophore_type == 'rsFP_generic_8states':
             # On-branch
-            K[0][0,1] = 1 / self.lifetime_on
-            K[0][2,1] = 1 / self.lifetime_on  * self.quantum_yield_on_to_off
-            K[0][2,3] = 1 / self.lifetime_on
-            K[0][0,3] = 1 / self.lifetime_on  * self.quantum_yield_trans_to_cis_anionic
-            K[0][4,2] = 1 / self.protonation_time_on
-            K[0][2,4] = 1 / self.protonation_time_on * 10**(self.ph_buffer - self.pka_trans)
+            K[0][0,1] = 1 / self.lifetime_anionic
+            K[0][2,1] = 1 / self.lifetime_anionic  * self.quantum_yield_cis_to_trans_anionic
+            K[0][2,3] = 1 / self.lifetime_anionic
+            K[0][0,3] = 1 / self.lifetime_anionic  * self.quantum_yield_trans_to_cis_anionic
+            K[0][4,2] = 1 / self.protonation_time_trans_anionic
+            K[0][2,4] = 1 / self.protonation_time_trans_anionic * 10**(self.ph_buffer - self.pka_trans)
             # Off-branch
-            K[0][4,5] = 1 / self.lifetime_off
-            K[0][6,5] = 1 / self.lifetime_off * self.quantum_yield_off_to_on
-            K[0][6,7] = 1 / self.lifetime_off
-            K[0][4,7] = 1 / self.lifetime_off * self.quantum_yield_cis_to_trans_neutral
-            K[0][0,6] = 1 / self.deprotonation_time_off
-            K[0][6,0] = 1 / self.deprotonation_time_off * 10**(self.pka_cis - self.ph_buffer)
+            K[0][4,5] = 1 / self.lifetime_neutral
+            K[0][6,5] = 1 / self.lifetime_neutral * self.quantum_yield_trans_to_cis_neutral
+            K[0][6,7] = 1 / self.lifetime_neutral
+            K[0][4,7] = 1 / self.lifetime_neutral * self.quantum_yield_cis_to_trans_neutral
+            K[0][0,6] = 1 / self.deprotonation_time_cis_neutral
+            K[0][6,0] = 1 / self.deprotonation_time_cis_neutral * 10**(self.pka_cis - self.ph_buffer)
             # Light driven
             for j in np.arange(nwavelengths):
-                K[j+1][1,0] = self.cross_section_on[j]  # cis anionic
-                K[j+1][3,2] = self.cross_section_on[j]  # trans anionic
-                K[j+1][5,4] = self.cross_section_off[j]  # trans neutral
-                K[j+1][7,6] = self.cross_section_off[j]  # cis neutral
+                K[j+1][1,0] = self.cross_section_anionic[j]  # cis anionic
+                K[j+1][3,2] = self.cross_section_anionic[j]  # trans anionic
+                K[j+1][5,4] = self.cross_section_neutral[j]  # trans neutral
+                K[j+1][7,6] = self.cross_section_neutral[j]  # cis neutral
         return K
 
-rsEGFP2_8states_pka = GenericSwitcher(extinction_coeff_on=  [  5260, 51560],
-                                      extinction_coeff_off=[ 22000,    60],
-                                      wavelength=          [   405,   488],
-                                      lifetime_on=1.6e-9,
-                                      lifetime_off=20e-12,
-                                      quantum_yield_on_to_off=0.0165,
-                                      quantum_yield_off_to_on=0.33,
-                                      quantum_yield_trans_to_cis_anionic=0.0165,
-                                      quantum_yield_cis_to_trans_neutral=0.33,
+rsEGFP2_8states_pka = GenericSwitcher(extinction_coeff_anionic=[  5260, 51560],
+                                      extinction_coeff_neutral=[ 22000,    60],
+                                      wavelength=              [   405,   488],
+                                      lifetime_anionic=1.6e-9,
+                                      lifetime_neutral=20e-12,
+                                      quantum_yield_cis_to_trans_anionic=0.0165, # off switch quantum yield
+                                      quantum_yield_trans_to_cis_neutral=0.33, # on switch quantum yield
+                                      quantum_yield_trans_to_cis_anionic=0.0165, # off switch reversed
+                                      quantum_yield_cis_to_trans_neutral=0.33, # on switch reversed
                                       quantum_yield_on_fluo=0.35,
                                       starting_populations=[1,0,0,0,0,0,0,0],
-                                      deprotonation_time_off=5.1e-6,
-                                      protonation_time_on=48e-6,
+                                      deprotonation_time_cis_neutral=5.1e-6,
+                                      protonation_time_trans_anionic=48e-6,
                                       flurophore_type='rsFP_generic_8states',
                                       pka_cis=5.9,
                                       pka_trans=10.0,
@@ -365,7 +354,7 @@ class STEDDye:
         # Population at the beginning of the experiment
         self.starting_populations = starting_populations
 
-    def kinetics_matrix(self, wavelength_laser):
+    def kinetics_matrix(self):
         # Compose the kinetic matrix, k.
         # Light driven transition are expressed as corss sections.
         # Transition induced by a certain wavelength are groupped
