@@ -97,11 +97,9 @@ class System:
 
         # Save variables, mainly for debugging.
         self._c_det = c_det
-        self._c = c
-        self._p = np.sum(c, axis=1)
         self._s = s
         return s
-            
+
     def solve(self, time):
         # Solve the time evolution of the system including the pulse scheme.
         
@@ -166,6 +164,7 @@ class System:
         # Save variables, mainly for debugging.
         self._c0 = c0
         self._c = c
+        self._p = np.sum(c, axis=1)
         return c
 
     def diffusion_kinetics_matrix(self):
