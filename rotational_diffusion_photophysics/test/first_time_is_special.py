@@ -1,7 +1,6 @@
 import numpy as np
 from rotational_diffusion_photophysics.models.illumination import ModulatedLasers
 from rotational_diffusion_photophysics.models.fluorophore import rsEGFP2_8states
-from rotational_diffusion_photophysics.models.fluorophore import rsEGFP2_8states_pka
 from rotational_diffusion_photophysics.models.detection import PolarizedDetection
 from rotational_diffusion_photophysics.models.diffusion import IsotropicDiffusion
 from rotational_diffusion_photophysics.plot.plot_pulse_scheme import plot_pulse_scheme
@@ -40,12 +39,6 @@ system = System(illumination=slow_lasers,
                 detection=detXY,
                 lmax=lmax)
 
-system_pka = System(illumination=slow_lasers,
-                fluorophore=rsEGFP2_8states_pka,
-                diffusion=iso100us,
-                detection=detXY,
-                lmax=lmax)
-
 plt.figure(1)
 t = np.linspace(0,5*dt,1000)
 signals = system.detector_signals(t)
@@ -55,21 +48,8 @@ plt.legend(np.arange(pop.shape[0]))
 plt.xlabel('Time (s)')
 plt.ylabel('Population')
 plt.title('pka << ph')
-plt.savefig('populations.png')
-    
-plt.figure(2)
-t = np.linspace(0,5*dt,1000)
-signals = system_pka.detector_signals(t)
-pop = system_pka._p
-plt.plot(t, pop.transpose())
-plt.legend(np.arange(pop.shape[0]))
-plt.xlabel('Time (s)')
-plt.ylabel('Population')
-plt.title('pka=5.9, ph=7.5')
-plt.savefig('populations_pka.png')
 
-plt.figure(3)
+plt.figure(2)
 plot_pulse_scheme(system, xlim=[0, 5*dt], ylim=[0, 1500])
 plt.title('Pulse scheme')
-plt.savefig('pulse_scheme.png')
 plt.show()

@@ -43,7 +43,7 @@ def plot_pulse_scheme(exp, xlim=[-.1e-3, 1e-3], ylim=[0, 6e4], yscale='linear'):
     labels = []
     for i in np.arange(wl.size):
         color = wl2rgb(wl[i])
-        plt.plot(t,p[i], color=color)
+        plt.fill_between(t, p[i], edgecolor=color, facecolor=np.concatenate((color, [0.1])))
         labels.append(np.array_str(wl[i])+' nm ('+pol[i]+')')
     plt.yscale(yscale)
     plt.ylabel('Power Density (W/cm$^{2}$)')

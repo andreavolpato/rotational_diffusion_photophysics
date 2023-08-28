@@ -201,7 +201,7 @@ class System:
         # in separate layers of k.
         # k has three dimensions: [nwavelenght+1, nspecies, nspecies].
         # k[0] is reserved for all non-light-induced transitions.
-        k = self.fluorophore.kinetics_matrix(self.illumination.wavelength)
+        k = self.fluorophore.kinetics_matrix()
         # Select the right lasers to use in the calculations
         nlasers = np.size(self.illumination.wavelength)
         lasers = self.illumination.wavelength
