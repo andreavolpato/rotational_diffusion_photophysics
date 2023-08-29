@@ -24,6 +24,9 @@ class NegativeSwitcher:
                  quantum_yield_cis_anionic_bleaching=0,
                  quantum_yield_trans_anionic_bleaching=0,
                  flurophore_type='rsfp_negative_4states'):
+        #TODO: make simpler init passing only variables to self.
+        #      Afterwards in the kinetic_matrix() method compute the necessary parameters.
+        #      Make a method called update_params() to do so.
         # Cross section in cm2 of absorptions
         epsilon2sigma = 3.825e-21  # [Tkachenko2007, page 5]
         self.extinction_coeff_on = np.array(extinction_coeff_on)  # [M-1 cm-1]
@@ -209,7 +212,7 @@ class GenericSwitcher:
                  quantum_yield_cis_to_trans_neutral=0.0165, # on switch reversed
                  deprotonation_time_cis_neutral = 5e-6,  # on switch
                  protonation_time_trans_anionic = 50e-6,  # off switch
-                 quantum_yield_on_fluo=1,
+                 quantum_yield_cis_anionic_fluo=1,
                  starting_populations=[1,0,0,0,0,0,0,0],
                  pka_cis=5.9,
                  pka_trans=10.0,
@@ -233,7 +236,7 @@ class GenericSwitcher:
         self.lifetime_neutral = lifetime_neutral  # [s]
 
         # Quantum yields and protonation/deprotonation
-        self.quantum_yield_on_fluo = quantum_yield_on_fluo
+        self.quantum_yield_cis_anionic_fluo = quantum_yield_cis_anionic_fluo
         self.quantum_yield_cis_to_trans_anionic = quantum_yield_cis_to_trans_anionic  # cis_to_trans_anionic 
         self.quantum_yield_trans_to_cis_neutral = quantum_yield_trans_to_cis_neutral  # trans_to_cis_neutra
         self.quantum_yield_cis_to_trans_neutral = quantum_yield_cis_to_trans_neutral
@@ -255,7 +258,7 @@ class GenericSwitcher:
         # Here, only one fluorescent state is assumed.
         # This is not necessary in general and could be extended in the future.
         self.quantum_yield_fluo = np.zeros((self.nspecies))
-        self.quantum_yield_fluo[1] = self.quantum_yield_on_fluo
+        self.quantum_yield_fluo[1] = self.quantum_yield_cis_anionic_fluo
 
         # Population at the beginning of the experiment
         self.starting_populations = starting_populations
@@ -302,7 +305,7 @@ rsEGFP2_8states_pka = GenericSwitcher(extinction_coeff_anionic=[  5260, 51560],
                                       quantum_yield_trans_to_cis_neutral=0.33, # on switch quantum yield
                                       quantum_yield_trans_to_cis_anionic=0.0165, # off switch reversed
                                       quantum_yield_cis_to_trans_neutral=0.33, # on switch reversed
-                                      quantum_yield_on_fluo=0.35,
+                                      quantum_yield_cis_anionic_fluo=0.35,
                                       starting_populations=[1,0,0,0,0,0,0,0],
                                       deprotonation_time_cis_neutral=5.1e-6,
                                       protonation_time_trans_anionic=48e-6,
