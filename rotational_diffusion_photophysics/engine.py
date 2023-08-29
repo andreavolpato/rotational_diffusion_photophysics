@@ -426,7 +426,7 @@ def diffusion_kinetics_matrix(D, K):
 #                                                 l[k], m[k])
 #                                 )
     
-#     # Constant due to normalizatino issues
+#     # Multiply constant due to normalization issues
 #     cgp = cgp*np.sqrt(4*np.pi) 
 #     return cgp
 
@@ -483,7 +483,6 @@ def diffusion_kinetics_matrix(D, K):
 
 
 if __name__ == "__main__":
-    #TODO make proper testing files
     a = None
     # from codetiming import Timer
 
