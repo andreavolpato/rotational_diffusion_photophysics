@@ -1,8 +1,7 @@
-import numpy as np
-import pyshtools as sht  # used in many spherical calculations
-# import spherical as sf  # currently used only for CG coefficients
-
 '''
+Andrea Volpato (2023)
+andrea.volpato@outlook.com
+
 This module solves analytically the rotational diffusion and kinetics
 in flurescence experiments with complex photophysics.
 An arbitrary kinetic scheme can be implemented using fluorophore classes.
@@ -11,6 +10,10 @@ square wave modulations.
 Detection and illumination can be done in arbitrary NA objectives, using 
 the Axelrod correction.
 '''
+
+import numpy as np
+import pyshtools as sht  # used in many spherical calculations
+# import spherical as sf  # currently used only for CG coefficients
 
 ################################################################################
 # Classes for programming experiments
@@ -21,7 +24,7 @@ class System:
                  fluorophore,
                  diffusion,
                  illumination,
-                 detection=[],
+                 detection=None,
                  lmax=6,
                  norm='4pi',
                  ):
@@ -232,7 +235,6 @@ def find_wavelenght(wavelength, laser):
     wavelength = np.array(wavelength)
     laser = np.array(laser)
 
-    wavelength_to_use = np.isin(wavelength, laser)
     laser_to_use = np.isin(laser, wavelength)
     assert np.all(laser_to_use), "Fluorophore data at one or more laser wavelenghts is missing."
 
@@ -306,7 +308,7 @@ def wigner_3j_prod_3darray(l, m):
     # 3D array with all the coefficient for sh multiplication
     # Here we use Wigner3j symbols from sht, it is 10-20 time faster than
     # clebsch_gordan_prod_3darray(l, m).
-    
+
     # Preliminary computations
     n = l.size
     lmax = np.uint(np.max(l))
@@ -341,7 +343,7 @@ def wigner_3j_prod_3darray(l, m):
                                     (np.pi*4) ) * w3j0 * w3j1 *(-1)**np.double(m3) 
             #NOTE: (-1)** factor is necessary to match the result obtained
             # with clebsh-gordan coefficients. I am not sure why it is the case.
-    
+
     # Constant due to normalizatino issues
     # Normalization of SH: https://shtools.github.io/SHTOOLS/real-spherical-harmonics.html
     w3jp = w3jp*np.sqrt(4*np.pi)

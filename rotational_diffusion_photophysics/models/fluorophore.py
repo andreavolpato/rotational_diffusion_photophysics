@@ -96,7 +96,7 @@ class NegativeSwitcher:
             for j in np.arange(nwavelengths):
                 K[j+1][1,0] = self.cross_section_on[j]
                 K[j+1][3,2] = self.cross_section_off[j]
-        
+
         if self.fluorophore_type == 'rsFP_negative_6states':
             # Light independent transitions
             K[0][0,1] = 1 / self.lifetime_on
@@ -109,7 +109,7 @@ class NegativeSwitcher:
             for j in np.arange(nwavelengths):
                 K[j+1][1,0] = self.cross_section_on[j]
                 K[j+1][4,3] = self.cross_section_off[j]
-        
+
         if self.fluorophore_type == 'rsFP_negative_8states':
             # On-branch
             K[0][0,1] = 1 / self.lifetime_on
@@ -129,7 +129,7 @@ class NegativeSwitcher:
                 K[j+1][3,2] = self.cross_section_on[j]  # trans anionic
                 K[j+1][5,4] = self.cross_section_off[j]  # trans neutral
                 K[j+1][7,6] = self.cross_section_off[j]  # cis neutral
-        
+
         if self.fluorophore_type == 'rsFP_negative_9states_bleaching':
             # On-branch
             K[0][0,1] = 1 / self.lifetime_on
